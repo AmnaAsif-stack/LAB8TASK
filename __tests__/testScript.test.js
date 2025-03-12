@@ -2,7 +2,7 @@ const request = require("supertest");
 const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
-const app = require("../src/app"); // Adjust the import based on your file structure
+const app = require("../src/events.js"); // Adjust the import based on your file structure
 
 jest.mock("fs");
 jest.mock("node-cron");
