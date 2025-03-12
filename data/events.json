@@ -1,0 +1,13 @@
+[
+    {
+      "id": 1,
+      "userId": 1,
+      "name": "Meeting with Team",
+      "description": "Discuss project updates",
+      "date": "2025-03-15",
+      "time": "10:00",
+      "category": "Meeting",
+      "reminderTime": "2025-03-15T09:00:00"
+    }
+  ]
+  
