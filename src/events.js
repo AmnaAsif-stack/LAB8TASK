@@ -1,40 +1,77 @@
-const fs = require('fs');
-const path = require('path');
-const eventsFilePath = path.join(__dirname, '../data/events.json');
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const cron = require("node-cron");
 
-// Function to read events from events.json
-const readEvents = () => {
-  const events = fs.readFileSync(eventsFilePath);
-  return JSON.parse(events);
+const app = express();
+app.use(express.json());
+
+const EVENTS_FILE = path.join(__dirname, "../data/events.json");
+
+// Load events from JSON file
+const loadEvents = () => {
+    if (!fs.existsSync(EVENTS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(EVENTS_FILE, "utf8"));
 };
 
-// Function to save events to events.json
+// Save events to JSON file
 const saveEvents = (events) => {
-  fs.writeFileSync(eventsFilePath, JSON.stringify(events, null, 2));
+    fs.writeFileSync(EVENTS_FILE, JSON.stringify(events, null, 2), "utf8");
 };
 
-// Create Event
-const createEvent = (userId, name, description, date, time, category, reminderTime) => {
-  const events = readEvents();
-  const newEvent = {
-    id: events.length + 1,
-    userId,
-    name,
-    description,
-    date,
-    time,
-    category,
-    reminderTime
-  };
-  events.push(newEvent);
-  saveEvents(events);
-  return newEvent;
+// Create an event
+app.post("/events", (req, res) => {
+    const { name, description, date, time, category, reminderMinutes } = req.body;
+    if (!name || !date || !time) {
+        return res.status(400).json({ message: "Name, date, and time are required" });
+    }
+
+    const events = loadEvents();
+    const newEvent = { id: events.length + 1, name, description, date, time, category, reminderMinutes };
+    events.push(newEvent);
+    saveEvents(events);
+
+    res.status(201).json({ message: "Event created", event: newEvent });
+});
+
+// Get all events
+app.get("/events", (req, res) => {
+    res.json(loadEvents());
+});
+
+// Get events by category
+app.get("/events/category/:category", (req, res) => {
+    const events = loadEvents().filter(event => event.category === req.params.category);
+    res.json(events);
+});
+
+// Get upcoming events
+app.get("/events/upcoming", (req, res) => {
+    const now = new Date();
+    const upcomingEvents = loadEvents().filter(event => new Date(`${event.date} ${event.time}`) > now);
+    res.json(upcomingEvents);
+});
+
+// Reminder system
+const scheduleReminders = () => {
+    const events = loadEvents();
+    events.forEach(event => {
+        if (event.reminderMinutes) {
+            const eventTime = new Date(`${event.date} ${event.time}`);
+            const reminderTime = new Date(eventTime - event.reminderMinutes * 60000);
+
+            if (reminderTime > new Date()) {
+                cron.schedule(`${reminderTime.getMinutes()} ${reminderTime.getHours()} * * *`, () => {
+                    console.log(`Reminder: ${event.name} is happening soon!`);
+                });
+            }
+        }
+    });
 };
 
-// Get Events
-const getEvents = (userId, filter) => {
-  const events = readEvents();
-  return events.filter(event => event.userId === userId && (filter ? event.category === filter : true));
-};
-
-module.exports = { createEvent, getEvents };
+// Start the server
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    scheduleReminders();
+});
